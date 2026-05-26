@@ -15,16 +15,6 @@ A production-ready B2C multi-product e-commerce platform built with React and Ja
 
 ---
 
-## 📅 15-Day Migration & Learning Roadmap
-
-We are currently migrating the legacy Node.js Express backend to Java Spring Boot. You can track our daily progress and find interview questions in the [15-Day Roadmap](docs/15_day_github_roadmap.md).
-
-*   **Days 1–4**: Project Setup & JPA Entity Database Modeling
-*   **Days 5–8**: Spring Security & JWT Token Authentication
-*   **Days 9–12**: Category APIs, Dynamic Product Searching, & Shopping Cart Services
-*   **Days 13–16**: Order Transactions, Razorpay Payments, & Admin Controls
-
----
 
 ## 🚀 Quick Start
 
