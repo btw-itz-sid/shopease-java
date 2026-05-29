@@ -104,7 +104,7 @@ function App() {
                 ShopEase
               </span>
               <span className="ml-2 text-[9px] font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                Day 3
+                Day 4
               </span>
             </div>
           </div>
@@ -165,13 +165,13 @@ function App() {
             <span>Interactive Catalog Redesign</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-            Categories & Products <br />
+            Users, Categories & Products <br />
             <span className="bg-gradient-to-r from-violet-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
               Visual Entity Explorer
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
-            Day 3 brings the complete JPA configuration mapping categories, products, and hierarchy structures dynamically represented below.
+            Day 4 introduces the User Entity and Role Enum, establishing database authorization structures and the relational product-seller mapping.
           </p>
         </div>
 
@@ -404,19 +404,19 @@ function App() {
               </div>
             </div>
 
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-900 flex items-start gap-2.5 bg-violet-950/10 border-violet-900/30">
-              <div className="w-4 h-4 rounded-full bg-violet-600 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0 mt-0.5">3</div>
+            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-900 flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-[11px] font-bold text-violet-400">Day 3: Entities</p>
-                <p className="text-[9px] text-slate-400 leading-snug">JPA Category & Product mappings + Live Showcase.</p>
+                <p className="text-[11px] font-bold text-slate-200">Day 3: Entities</p>
+                <p className="text-[9px] text-slate-500 leading-snug">JPA Category & Product mappings + Live Showcase.</p>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-950 flex items-start gap-2.5">
-              <div className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[9px] text-slate-500 font-bold flex-shrink-0 mt-0.5">4</div>
+            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-900 flex items-start gap-2.5 bg-violet-950/10 border-violet-900/30">
+              <div className="w-4 h-4 rounded-full bg-violet-600 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0 mt-0.5">4</div>
               <div>
-                <p className="text-[11px] font-bold text-slate-500">Day 4: Users & Roles</p>
-                <p className="text-[9px] text-slate-600 leading-snug">User Entity, Enum roles & ManyToOne seller FK upgrade.</p>
+                <p className="text-[11px] font-bold text-violet-400">Day 4: Users & Roles</p>
+                <p className="text-[9px] text-slate-450 leading-snug">User Entity, Enum roles & ManyToOne seller FK upgrade.</p>
               </div>
             </div>
           </div>

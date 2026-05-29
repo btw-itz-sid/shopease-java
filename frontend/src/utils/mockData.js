@@ -1,4 +1,31 @@
-// Mock database entries mimicking the Day 3 Category and Product JPA Entity tables.
+// Mock database entries mimicking the Day 4 User, Category, and Product JPA Entity tables.
+
+export const mockUsers = [
+  {
+    id: 50,
+    name: "OmniTech Ventures",
+    email: "seller50@shopease.com",
+    role: "SELLER"
+  },
+  {
+    id: 51,
+    name: "Lumio Labs",
+    email: "seller51@shopease.com",
+    role: "SELLER"
+  },
+  {
+    id: 52,
+    name: "Kobe Furniture Co",
+    email: "seller52@shopease.com",
+    role: "SELLER"
+  },
+  {
+    id: 53,
+    name: "PulseAudio Ltd",
+    email: "seller53@shopease.com",
+    role: "SELLER"
+  }
+];
 
 export const mockCategories = [
   {
@@ -60,8 +87,8 @@ export const mockCategories = [
 export const mockProducts = [
   {
     id: 101,
-    sellerId: 50,
-    category: mockCategories[1], // Audio & Acoustics (Sub-category of Electronics)
+    seller: mockUsers[0], // OmniTech Ventures
+    category: mockCategories[1], // Audio & Acoustics
     title: "Aether Dynamic Wireless Headphones",
     slug: "aether-dynamic-wireless-headphones",
     description: "Experience pure acoustic bliss with custom dynamic drivers, hybrid Active Noise Cancellation (ANC), and spatial tracking audio. Styled in deep space grey with ultra-breathable memory foam cushions.",
@@ -77,8 +104,8 @@ export const mockProducts = [
   },
   {
     id: 102,
-    sellerId: 50,
-    category: mockCategories[2], // Smartphones & Mobile (Sub-category of Electronics)
+    seller: mockUsers[0], // OmniTech Ventures
+    category: mockCategories[2], // Smartphones & Mobile
     title: "Vortex Pro Titanium Smartphone",
     slug: "vortex-pro-titanium-smartphone",
     description: "Harness standard-defining mobile computing with an aerospace titanium frame, 120Hz LTPO OLED display, and the revolutionary Neural8 processor. Tri-lens system with optical image stabilization.",
@@ -94,8 +121,8 @@ export const mockProducts = [
   },
   {
     id: 103,
-    sellerId: 51,
-    category: mockCategories[4], // Smart Ambient Lighting (Sub-category of Home & Lifestyle)
+    seller: mockUsers[1], // Lumio Labs
+    category: mockCategories[4], // Smart Ambient Lighting
     title: "Lumio Horizon smart LED Lightbar",
     slug: "lumio-horizon-smart-led-lightbar",
     description: "Transform your workspace with 16 million colors, dual-zone addressable LED layout, and custom sound reactive visualizer mode. Integrates seamlessly with top smart assistant standards.",
@@ -111,8 +138,8 @@ export const mockProducts = [
   },
   {
     id: 104,
-    sellerId: 52,
-    category: mockCategories[5], // Minimalist Furniture (Sub-category of Home & Lifestyle)
+    seller: mockUsers[2], // Kobe Furniture Co
+    category: mockCategories[5], // Minimalist Furniture
     title: "Kobe Ergonomic Oak Office Desk",
     slug: "kobe-ergonomic-oak-office-desk",
     description: "A gorgeous desk designed to fuel concentration and clarity. Handcrafted from sustainably-sourced American white oak wood, paired with heavy-duty powder-coated structural steel frames and integrated cable tray systems.",
@@ -128,7 +155,7 @@ export const mockProducts = [
   },
   {
     id: 105,
-    sellerId: 50,
+    seller: mockUsers[0], // OmniTech Ventures
     category: mockCategories[2], // Smartphones & Mobile
     title: "Chrono X Hybrid Smartwatch",
     slug: "chrono-x-hybrid-smartwatch",
@@ -145,7 +172,7 @@ export const mockProducts = [
   },
   {
     id: 106,
-    sellerId: 53,
+    seller: mockUsers[3], // PulseAudio Ltd
     category: mockCategories[1], // Audio & Acoustics
     title: "Pulse Mini Waterproof Bluetooth Speaker",
     slug: "pulse-mini-waterproof-bluetooth-speaker",

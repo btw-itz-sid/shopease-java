@@ -74,7 +74,7 @@ export default function ProductCard({ product, onAddToCart, onQuickView }) {
             </div>
             <div className="flex items-center gap-0.5">
               <Award className="w-3 h-3 text-indigo-400" />
-              <span>Seller ID: {product.sellerId}</span>
+              <span>Seller: {product.seller?.name}</span>
             </div>
           </div>
 
