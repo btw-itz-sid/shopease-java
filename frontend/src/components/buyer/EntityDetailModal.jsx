@@ -72,7 +72,11 @@ export default function EntityDetailModal({ product, onClose, onAddToCart }) {
                   <span>Category:</span>
                   <span className="text-violet-400 underline">{product.category.name}</span>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">{product.description}</p>
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                  <span>Seller:</span>
+                  <span className="text-pink-450 font-bold">{product.seller?.name} ({product.seller?.role})</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed mt-2">{product.description}</p>
               </div>
 
               <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
@@ -115,7 +119,12 @@ export default function EntityDetailModal({ product, onClose, onAddToCart }) {
                     rating: parseFloat(product.rating),
                     rating_count: product.ratingCount,
                     is_active: product.isActive,
-                    seller_id: product.sellerId,
+                    seller: {
+                      id: product.seller?.id,
+                      name: product.seller?.name,
+                      email: product.seller?.email,
+                      role: product.seller?.role
+                    },
                     category_id: product.category.id,
                     images: images
                   },

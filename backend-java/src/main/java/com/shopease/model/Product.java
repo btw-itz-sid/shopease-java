@@ -14,8 +14,6 @@ import java.util.List;
 /**
  * JPA Entity representing a product listed on the marketplace.
  * Each product belongs to a category and is owned by a seller (User).
- * The seller relationship uses a raw seller_id FK for now — the User entity
- * will be created on Day 4 and the @ManyToOne mapping will be added then.
  */
 @Entity
 @Table(name = "products")
@@ -30,12 +28,11 @@ public class Product {
     private Long id;
 
     /**
-     * The ID of the seller who listed this product.
-     * Stored as a plain column for now. Will be converted to a
-     * full @ManyToOne relationship when the User entity is created (Day 4).
+     * Many products are listed by one seller (User).
      */
-    @Column(name = "seller_id")
-    private Long sellerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seller_id")
+    private User seller;
 
     /**
      * Many products belong to one category.
