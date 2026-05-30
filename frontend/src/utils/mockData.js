@@ -1,4 +1,4 @@
-// Mock database entries mimicking the Day 4 User, Category, and Product JPA Entity tables.
+// ShopEase marketplace mock data — sellers, categories, and products.
 
 export const mockUsers = [
   {
