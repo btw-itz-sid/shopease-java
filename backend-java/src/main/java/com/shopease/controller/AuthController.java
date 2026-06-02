@@ -1,6 +1,11 @@
 package com.shopease.controller;
 
+import com.shopease.dto.RegisterRequest;
+import com.shopease.dto.UserResponse;
+import com.shopease.service.AuthService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -10,8 +15,8 @@ import java.util.Map;
 
 /**
  * Authentication and Security verification controller.
- * Day 5: Exposes REST API endpoints to perform password hashing
- * and hash verification using the BCryptPasswordEncoder bean.
+ * Day 5: Exposes REST API endpoints to perform password hashing.
+ * Day 6: Exposes registration endpoint with input validation and uniqueness checking.
  */
 @RestController
 @RequestMapping("/auth")
@@ -19,10 +24,28 @@ import java.util.Map;
 public class AuthController {
 
     private final BCryptPasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
     @Autowired
-    public AuthController(BCryptPasswordEncoder passwordEncoder) {
+    public AuthController(BCryptPasswordEncoder passwordEncoder, AuthService authService) {
         this.passwordEncoder = passwordEncoder;
+        this.authService = authService;
+    }
+
+    /**
+     * Registers a new user with input validation.
+     * POST /api/auth/register
+     */
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+        try {
+            UserResponse registeredUser = authService.register(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     /**
