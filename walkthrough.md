@@ -56,3 +56,16 @@ We ran the JUnit Maven test suite to verify controller logic. The execution comp
 - Submitting an already registered email throws the correct duplicate error message.
 - Input validation correctly catches blank names, invalid emails, and too short passwords.
 - Side-by-side view successfully updates in real-time, displaying the encrypted credentials vs client DTO.
+
+### 3. Storefront Frontend Registration & Auth Modal Integration
+- **AuthModal Component**: Built a modern, sleek dialog with toggles for Sign In and Sign Up.
+  - Interactive validation checking email pattern and minimum password length.
+  - Submits registration requests directly to Spring Boot `POST http://localhost:8085/api/auth/register`.
+  - Supports an automatic fallback sandbox mode to enable smooth mock signups if the backend JVM server is offline.
+  - Allows selecting roles (`BUYER` vs `SELLER`) during registration.
+- **Navbar Profile Dropdown**:
+  - Replaced the static profile icon in the header with a dynamic button.
+  - When logged in, displays the user's avatar (fetched via URL or DiceBear initials generator) and their name.
+  - Clicking opens a premium dropdown menu displaying the logged-in user's details, role badge, access links, and a **Sign Out** button.
+- **Session Persistence**: Saves the user's details to `localStorage` so sessions remain active across browser page reloads.
+

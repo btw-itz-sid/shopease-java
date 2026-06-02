@@ -4,7 +4,9 @@ import SecurityVisualizer from './components/buyer/SecurityVisualizer';
 import CategoryShowcase from './components/buyer/CategoryShowcase';
 import ProductCard from './components/buyer/ProductCard';
 import EntityDetailModal from './components/buyer/EntityDetailModal';
+import AuthModal from './components/buyer/AuthModal';
 import { mockCategories, mockProducts } from './utils/mockData';
+
 
 /* ─── Scroll-reveal ─── */
 function useReveal() {
@@ -121,11 +123,64 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
 
+  // Authentication & Session States
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [backendStatus, setBackendStatus] = useState('checking');
+
+  useEffect(() => {
+    // Check local storage for session
+    const storedUser = localStorage.getItem('shopease_user');
+    if (storedUser) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem('shopease_user');
+      }
+    }
+
+    // Health check the backend on load
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('http://localhost:8085/api/auth/hash-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: 'ping' })
+        });
+        if (response.ok || response.status === 400) {
+          setBackendStatus('live');
+        } else {
+          setBackendStatus('offline');
+        }
+      } catch (err) {
+        setBackendStatus('offline');
+      }
+    };
+    checkBackend();
+  }, []);
+
+  const handleAuthSuccess = (user, message) => {
+    setCurrentUser(user);
+    localStorage.setItem('shopease_user', JSON.stringify(user));
+    setToast(message || 'Success!');
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleSignOut = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('shopease_user');
+    setUserDropdownOpen(false);
+    setToast('Signed out successfully');
+    setTimeout(() => setToast(null), 2500);
+  };
+
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
   }, []);
+
 
   const addToCart = (p) => {
     setCartItems(prev => [...prev, p]);
@@ -231,9 +286,69 @@ export default function App() {
             </div>
 
             {/* Right */}
-            <div className="flex items-center gap-0.5">
-              <button className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all">{I.user}</button>
+            <div className="flex items-center gap-0.5 relative">
+              {currentUser ? (
+                <div className="relative">
+                  <button 
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)} 
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-[#F3F0EA]/75 hover:bg-[#E7E5E4] border border-[#E7E5E4]/40 transition-all focus:outline-none"
+                    id="profile-dropdown-btn"
+                  >
+                    <img 
+                      src={currentUser.avatarUrl || currentUser.avatar_url || `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUser.name}`} 
+                      alt="User Avatar" 
+                      className="w-6 h-6 rounded-full border border-white object-cover"
+                    />
+                    <span className="text-[12px] font-semibold text-[#1C1917] hidden sm:inline max-w-[80px] truncate">{currentUser.name}</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-[#78716C] transition-transform duration-200 ${userDropdownOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+
+                  {userDropdownOpen && (
+                    <>
+                      {/* Invisible backdrop to dismiss dropdown */}
+                      <div className="fixed inset-0 z-30" onClick={() => setUserDropdownOpen(false)}></div>
+                      <div className="absolute right-0 mt-2 w-52 bg-white border border-[#E7E5E4] rounded-2xl shadow-xl py-2 z-40 animate-scaleIn">
+                        <div className="px-4 py-2.5 border-b border-[#F3F0EA]">
+                          <p className="text-xs font-bold text-[#1C1917] truncate">{currentUser.name}</p>
+                          <p className="text-[10px] text-[#78716C] truncate mt-0.5">{currentUser.email}</p>
+                          <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#4A6741]/10 text-[#4A6741] uppercase tracking-wider">{currentUser.role}</span>
+                        </div>
+                        <button 
+                          onClick={() => { setViewMode('store'); setUserDropdownOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA] transition-all"
+                        >
+                          My Orders
+                        </button>
+                        <button 
+                          onClick={() => { setViewMode('security'); setUserDropdownOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA] transition-all flex items-center gap-1.5"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                          Security Lab
+                        </button>
+                        <hr className="my-1 border-[#F3F0EA]" />
+                        <button 
+                          onClick={handleSignOut}
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-red-650 hover:bg-red-50 transition-all"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setAuthModalOpen(true)} 
+                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all"
+                  title="Sign In / Register"
+                  id="login-btn"
+                >
+                  {I.user}
+                </button>
+              )}
               <button className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all">{I.heart}</button>
+
 
               {/* Cart CTA */}
               <button className="relative flex items-center gap-2 ml-2 pl-3.5 pr-4 py-2 rounded-full bg-[#1C1917] text-white text-[13px] font-semibold hover:bg-[#292524] active:scale-[0.97] transition-all">
@@ -498,6 +613,12 @@ export default function App() {
       </footer>
 
       {selectedProduct && <EntityDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} />}
+      <AuthModal 
+        isOpen={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)} 
+        onAuthSuccess={handleAuthSuccess} 
+        status={backendStatus}
+      />
     </div>
   );
 }
