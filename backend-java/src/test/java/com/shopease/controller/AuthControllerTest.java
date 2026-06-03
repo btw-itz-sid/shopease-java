@@ -4,10 +4,13 @@ import com.shopease.dto.RegisterRequest;
 import com.shopease.dto.UserResponse;
 import com.shopease.model.Role;
 import com.shopease.service.AuthService;
+import com.shopease.security.JwtUtils;
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,6 +21,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -30,6 +34,9 @@ public class AuthControllerTest {
 
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Mock
+    private JwtUtils jwtUtils;
 
     @InjectMocks
     private AuthController authController;
@@ -109,5 +116,53 @@ public class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void generateJwt_Success() throws Exception {
+        String email = "test@shopease.com";
+        String role = "BUYER";
+        String mockToken = "header.payload.signature";
+
+        when(jwtUtils.generateToken(email, role)).thenReturn(mockToken);
+
+        String payload = "{" +
+                "\"email\":\"test@shopease.com\"," +
+                "\"role\":\"BUYER\"" +
+                "}";
+
+        mockMvc.perform(post("/auth/jwt-generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", is(mockToken)))
+                .andExpect(jsonPath("$.header", is("header")))
+                .andExpect(jsonPath("$.payload", is("payload")))
+                .andExpect(jsonPath("$.signature", is("signature")));
+    }
+
+    @Test
+    void validateJwt_Success() throws Exception {
+        String token = "valid.token.here";
+        Claims mockClaims = mock(Claims.class);
+        
+        when(jwtUtils.validateToken(token)).thenReturn(true);
+        when(jwtUtils.getClaims(token)).thenReturn(mockClaims);
+        when(mockClaims.getSubject()).thenReturn("test@shopease.com");
+        when(mockClaims.get("role", String.class)).thenReturn("BUYER");
+        when(mockClaims.getIssuedAt()).thenReturn(new java.util.Date());
+        when(mockClaims.getExpiration()).thenReturn(new java.util.Date(System.currentTimeMillis() + 60000));
+
+        String payload = "{" +
+                "\"token\":\"valid.token.here\"" +
+                "}";
+
+        mockMvc.perform(post("/auth/jwt-validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid", is(true)))
+                .andExpect(jsonPath("$.claims.sub", is("test@shopease.com")))
+                .andExpect(jsonPath("$.claims.role", is("BUYER")));
     }
 }

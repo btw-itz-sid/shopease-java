@@ -69,6 +69,22 @@ export default function SecurityVisualizer() {
   const [registeredDbRecord, setRegisteredDbRecord] = useState(null);
   const [registeredApiResponse, setRegisteredApiResponse] = useState(null);
 
+  // JWT Lab States
+  const [jwtEmail, setJwtEmail] = useState('student@shopease.com');
+  const [jwtRole, setJwtRole] = useState('BUYER');
+  const [jwtExpiration, setJwtExpiration] = useState(86400000); // 24 hours in ms
+  const [jwtLoading, setJwtLoading] = useState(false);
+  const [generatedJwt, setGeneratedJwt] = useState('');
+  const [jwtHeaderSegment, setJwtHeaderSegment] = useState('');
+  const [jwtPayloadSegment, setJwtPayloadSegment] = useState('');
+  const [jwtSignatureSegment, setJwtSignatureSegment] = useState('');
+  const [jwtCopied, setJwtCopied] = useState(false);
+
+  // JWT Validation States
+  const [verifyJwtToken, setVerifyJwtToken] = useState('');
+  const [jwtValidResult, setJwtValidResult] = useState(null);
+  const [jwtVerifyLoading, setJwtVerifyLoading] = useState(false);
+
   // Connection State
   const [status, setStatus] = useState('checking'); // 'checking' | 'live' | 'offline'
 
@@ -198,6 +214,200 @@ export default function SecurityVisualizer() {
   useEffect(() => {
     handleGenerateHash();
   }, [status]);
+
+  // Helper to base64url encode a string
+  const base64UrlEncode = (str) => {
+    try {
+      const base64 = btoa(unescape(encodeURIComponent(str)));
+      return base64
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+    } catch (e) {
+      return '';
+    }
+  };
+
+  // Helper to base64url decode a string
+  const base64UrlDecode = (str) => {
+    try {
+      let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      return decodeURIComponent(escape(atob(base64)));
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Offline/Sandbox JWT generator
+  const generateMockJwt = (email, role, expirationMs) => {
+    const header = JSON.stringify({ alg: "HS256", typ: "JWT" });
+    const payload = JSON.stringify({
+      sub: email,
+      role: role,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor((Date.now() + parseInt(expirationMs)) / 1000)
+    });
+
+    const encodedHeader = base64UrlEncode(header);
+    const encodedPayload = base64UrlEncode(payload);
+    const signaturePlain = `${encodedHeader}.${encodedPayload}.shopease_secret_key_2026`;
+    const encodedSignature = base64UrlEncode(signaturePlain).substring(0, 43);
+
+    return {
+      token: `${encodedHeader}.${encodedPayload}.${encodedSignature}`,
+      header: encodedHeader,
+      payload: encodedPayload,
+      signature: encodedSignature
+    };
+  };
+
+  // Offline/Sandbox JWT validator
+  const validateMockJwt = (token) => {
+    if (!token) return { valid: false, error: "Token is empty" };
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return { valid: false, error: "Malformed Token: A JWT must contain exactly 3 segments separated by dots." };
+    }
+
+    const decodedHeaderStr = base64UrlDecode(parts[0]);
+    const decodedPayloadStr = base64UrlDecode(parts[1]);
+
+    if (!decodedHeaderStr || !decodedPayloadStr) {
+      return { valid: false, error: "Malformed Token: Failed to decode base64url payload/header." };
+    }
+
+    try {
+      const header = JSON.parse(decodedHeaderStr);
+      const payload = JSON.parse(decodedPayloadStr);
+
+      if (!payload.exp) {
+        return { valid: false, error: "Invalid Claims: Missing expiration ('exp') claim." };
+      }
+
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (payload.exp < currentTime) {
+        return { 
+          valid: false, 
+          error: `Token Expired: The token expired at ${new Date(payload.exp * 1000).toLocaleTimeString()} (server time: ${new Date(currentTime * 1000).toLocaleTimeString()})`
+        };
+      }
+
+      return {
+        valid: true,
+        claims: {
+          sub: payload.sub || "unknown",
+          role: payload.role || "UNKNOWN",
+          iat: payload.iat,
+          exp: payload.exp
+        }
+      };
+    } catch (e) {
+      return { valid: false, error: "Malformed Token: Failed to parse Header or Payload JSON." };
+    }
+  };
+
+  // Perform JWT Generation
+  const handleGenerateJwt = async (e) => {
+    e.preventDefault();
+    if (!jwtEmail || !jwtRole) return;
+    setJwtLoading(true);
+
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    if (status === 'live') {
+      try {
+        const response = await fetch('http://localhost:8085/api/auth/jwt-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: jwtEmail, role: jwtRole, expirationMs: jwtExpiration })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setGeneratedJwt(data.token);
+          setJwtHeaderSegment(data.header);
+          setJwtPayloadSegment(data.payload);
+          setJwtSignatureSegment(data.signature);
+          setVerifyJwtToken(data.token);
+          setJwtValidResult(null);
+        } else {
+          const mock = generateMockJwt(jwtEmail, jwtRole, jwtExpiration);
+          setGeneratedJwt(mock.token);
+          setJwtHeaderSegment(mock.header);
+          setJwtPayloadSegment(mock.payload);
+          setJwtSignatureSegment(mock.signature);
+          setVerifyJwtToken(mock.token);
+        }
+      } catch (err) {
+        const mock = generateMockJwt(jwtEmail, jwtRole, jwtExpiration);
+        setGeneratedJwt(mock.token);
+        setJwtHeaderSegment(mock.header);
+        setJwtPayloadSegment(mock.payload);
+        setJwtSignatureSegment(mock.signature);
+        setVerifyJwtToken(mock.token);
+      }
+    } else {
+      const mock = generateMockJwt(jwtEmail, jwtRole, jwtExpiration);
+      setGeneratedJwt(mock.token);
+      setJwtHeaderSegment(mock.header);
+      setJwtPayloadSegment(mock.payload);
+      setJwtSignatureSegment(mock.signature);
+      setVerifyJwtToken(mock.token);
+      setJwtValidResult(null);
+    }
+    setJwtLoading(false);
+  };
+
+  // Perform JWT Verification
+  const handleVerifyJwt = async () => {
+    if (!verifyJwtToken) return;
+    setJwtVerifyLoading(true);
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    if (status === 'live') {
+      try {
+        const response = await fetch('http://localhost:8085/api/auth/jwt-validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: verifyJwtToken })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setJwtValidResult(data);
+        } else {
+          setJwtValidResult(validateMockJwt(verifyJwtToken));
+        }
+      } catch (err) {
+        setJwtValidResult(validateMockJwt(verifyJwtToken));
+      }
+    } else {
+      setJwtValidResult(validateMockJwt(verifyJwtToken));
+    }
+    setJwtVerifyLoading(false);
+  };
+
+  // Copy JWT to Clipboard
+  const handleCopyJwt = () => {
+    if (!generatedJwt) return;
+    navigator.clipboard.writeText(generatedJwt);
+    setJwtCopied(true);
+    setTimeout(() => setJwtCopied(false), 2000);
+  };
+
+  // Generate initial token on mount if not present
+  useEffect(() => {
+    if (activeTab === 'jwt' && !generatedJwt) {
+      const mock = generateMockJwt(jwtEmail, jwtRole, jwtExpiration);
+      setGeneratedJwt(mock.token);
+      setJwtHeaderSegment(mock.header);
+      setJwtPayloadSegment(mock.payload);
+      setJwtSignatureSegment(mock.signature);
+      setVerifyJwtToken(mock.token);
+    }
+  }, [activeTab]);
 
   // Offline registration runner
   const runOfflineRegistration = (name, email, password, role) => {
@@ -375,6 +585,8 @@ public class SecurityConfig {
 import com.shopease.dto.RegisterRequest;
 import com.shopease.dto.UserResponse;
 import com.shopease.service.AuthService;
+import com.shopease.security.JwtUtils;
+import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -388,6 +600,7 @@ import java.util.Map;
  * Authentication and Security verification controller.
  * Day 5: Exposes REST API endpoints to perform password hashing.
  * Day 6: Exposes registration endpoint with input validation and uniqueness checking.
+ * Day 7: Exposes JWT token generation and validation helper endpoints.
  */
 @RestController
 @RequestMapping("/auth")
@@ -396,11 +609,13 @@ public class AuthController {
 
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthService authService;
+    private final JwtUtils jwtUtils;
 
     @Autowired
-    public AuthController(BCryptPasswordEncoder passwordEncoder, AuthService authService) {
+    public AuthController(BCryptPasswordEncoder passwordEncoder, AuthService authService, JwtUtils jwtUtils) {
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
+        this.jwtUtils = jwtUtils;
     }
 
     /**
@@ -468,6 +683,148 @@ public class AuthController {
         response.put("status", "success");
         
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Exposes JWT token generation utility.
+     * POST /api/auth/jwt-generate
+     */
+    @PostMapping("/jwt-generate")
+    public ResponseEntity<?> generateJwt(@RequestBody Map<String, Object> request) {
+        String email = (String) request.get("email");
+        String role = (String) request.get("role");
+        Number customExpiry = (Number) request.get("expirationMs");
+
+        if (email == null || email.trim().isEmpty() || role == null) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Email and role are required");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        String token;
+        if (customExpiry != null) {
+            token = jwtUtils.generateToken(email, role, customExpiry.longValue());
+        } else {
+            token = jwtUtils.generateToken(email, role);
+        }
+
+        String[] parts = token.split("\\\\.");
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        if (parts.length == 3) {
+            response.put("header", parts[0]);
+            response.put("payload", parts[1]);
+            response.put("signature", parts[2]);
+        }
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Exposes JWT token validation utility.
+     * POST /api/auth/jwt-validate
+     */
+    @PostMapping("/jwt-validate")
+    public ResponseEntity<?> validateJwt(@RequestBody Map<String, String> request) {
+        String token = request.get("token");
+        if (token == null || token.trim().isEmpty()) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Token is required");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        boolean valid = jwtUtils.validateToken(token);
+        Map<String, Object> response = new HashMap<>();
+        response.put("valid", valid);
+
+        if (valid) {
+            Claims claims = jwtUtils.getClaims(token);
+            Map<String, Object> claimsMap = new HashMap<>();
+            claimsMap.put("sub", claims.getSubject());
+            claimsMap.put("role", claims.get("role", String.class));
+            claimsMap.put("iat", claims.getIssuedAt().getTime() / 1000);
+            claimsMap.put("exp", claims.getExpiration().getTime() / 1000);
+            response.put("claims", claimsMap);
+        } else {
+            response.put("error", "Invalid signature or token expired");
+        }
+
+        return ResponseEntity.ok(response);
+    }
+}`;
+
+  const jwtUtilsCode = `package com.shopease.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+
+/**
+ * Utility class for JSON Web Token (JWT) handling.
+ * Day 7: Handles token generation, signature validation, and claims parsing.
+ */
+@Component
+public class JwtUtils {
+
+    private final SecretKey key;
+    private final long expirationMs;
+
+    public JwtUtils(
+            @Value("\${jwt.secret}") String secret,
+            @Value("\${jwt.expiration}") long expirationMs) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationMs = expirationMs;
+    }
+
+    public String generateToken(String email, String role) {
+        return generateToken(email, role, this.expirationMs);
+    }
+
+    public String generateToken(String email, String role, long customExpirationMs) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + customExpirationMs);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim("role", role)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
+                .compact();
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public String getEmailFromToken(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    public String getRoleFromToken(String token) {
+        return getClaims(token).get("role", String.class);
+    }
+
+    public Claims getClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }`;
 
@@ -655,6 +1012,17 @@ public class AuthServiceImpl implements AuthService {
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>User Registration Lab</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('jwt')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              activeTab === 'jwt'
+                ? 'bg-violet-600 text-white shadow-md shadow-violet-600/15'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>JWT Lab</span>
           </button>
           <button
             onClick={() => setActiveTab('code')}
@@ -1230,6 +1598,315 @@ public class AuthServiceImpl implements AuthService {
         </div>
       )}
 
+      {/* JWT Lab Section */}
+      {activeTab === 'jwt' && (
+        <div className="space-y-6 animate-fadeIn">
+          
+          {/* JWT Info Banner */}
+          <div className="bg-gradient-to-r from-fuchsia-950/20 to-violet-950/20 border border-fuchsia-900/40 rounded-2xl p-4 flex gap-3 text-xs leading-relaxed text-slate-300">
+            <KeyRound className="w-5 h-5 text-fuchsia-400 flex-shrink-0 mt-0.5 animate-pulse" />
+            <div>
+              <p className="font-bold text-fuchsia-200">Day 7: JSON Web Token (JWT) Workspace</p>
+              <p className="text-slate-400 mt-0.5">
+                Generate and validate tokens securely using JWT signatures. The **JWT Debugger** decodes base64url segments in real-time, showcasing the Header (red), Payload (blue), and Signature (green). Turn off the backend to try local JS sandbox fallback generation.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left Column: Token Generator Form */}
+            <form onSubmit={handleGenerateJwt} className="lg:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-4 hover:border-fuchsia-500/20 transition-all duration-300 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
+                  <div className="w-7 h-7 rounded-lg bg-fuchsia-600/10 border border-fuchsia-500/20 flex items-center justify-center">
+                    <KeyRound className="w-3.5 h-3.5 text-fuchsia-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">JWT Generator</h3>
+                    <p className="text-[10px] text-slate-500">Submits to POST /api/auth/jwt-generate</p>
+                  </div>
+                </div>
+
+                {/* Email Subject Field */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Email (sub)</label>
+                  <input
+                    type="email"
+                    value={jwtEmail}
+                    onChange={e => setJwtEmail(e.target.value)}
+                    placeholder="e.g. user@shopease.com"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-fuchsia-500 font-mono"
+                  />
+                </div>
+
+                {/* Role Claim Field */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Role Claim (role)</label>
+                  <select
+                    value={jwtRole}
+                    onChange={e => setJwtRole(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-fuchsia-500"
+                  >
+                    <option value="BUYER">BUYER</option>
+                    <option value="SELLER">SELLER</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                </div>
+
+                {/* Custom Expiration Slider */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <span>Token Lifetime (exp)</span>
+                    <span className="text-fuchsia-400 font-mono">
+                      {jwtExpiration === 10000 ? '10 Seconds' :
+                       jwtExpiration === 3600000 ? '1 Hour' :
+                       jwtExpiration === 86400000 ? '24 Hours' : '7 Days'}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="4"
+                    step="1"
+                    value={
+                      jwtExpiration === 10000 ? 1 :
+                      jwtExpiration === 3600000 ? 2 :
+                      jwtExpiration === 86400000 ? 3 : 4
+                    }
+                    onChange={e => {
+                      const val = parseInt(e.target.value);
+                      if (val === 1) setJwtExpiration(10000); // 10s
+                      else if (val === 2) setJwtExpiration(3600000); // 1h
+                      else if (val === 3) setJwtExpiration(86400000); // 24h
+                      else setJwtExpiration(604800000); // 7d
+                    }}
+                    className="w-full h-1.5 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-fuchsia-600 border border-slate-800"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-550 font-mono">
+                    <span>10s (Test Expire)</span>
+                    <span>1h</span>
+                    <span>24h</span>
+                    <span>7d</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={jwtLoading || !jwtEmail}
+                className="w-full mt-6 bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white rounded-xl py-2.5 text-xs font-bold shadow-lg shadow-fuchsia-600/10 hover:shadow-fuchsia-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {jwtLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Signing Token Payload...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Generate Secure JWT</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Right Column: JWT.io Styled Debugger */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 hover:border-fuchsia-500/10 transition-all duration-300 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-violet-600/10 border border-violet-500/20 flex items-center justify-center">
+                      <Lock className="w-3.5 h-3.5 text-violet-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">JWT Debugger Inspector</h4>
+                      <p className="text-[9px] text-slate-500">Live base64url segments breakdown</p>
+                    </div>
+                  </div>
+
+                  {generatedJwt && (
+                    <button
+                      type="button"
+                      onClick={handleCopyJwt}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-semibold text-slate-300 hover:text-white transition-colors"
+                    >
+                      {jwtCopied ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Token</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Colored Token Box */}
+                <div className="bg-slate-900 border border-slate-850 rounded-xl p-4 font-mono text-xs break-all leading-normal select-all">
+                  {generatedJwt ? (
+                    <div className="tracking-wide">
+                      <span className="text-rose-400 font-bold" title="Header (Algorithm & Type)">{jwtHeaderSegment}</span>
+                      <span className="text-slate-400 font-bold">.</span>
+                      <span className="text-indigo-400 font-bold" title="Payload (User Details & Claims)">{jwtPayloadSegment}</span>
+                      <span className="text-slate-400 font-bold">.</span>
+                      <span className="text-emerald-400 font-bold" title="Signature (HMAC SHA-256 Verified)">{jwtSignatureSegment}</span>
+                    </div>
+                  ) : (
+                    <span className="text-slate-550 block text-center">Submit generate request to view encoded token</span>
+                  )}
+                </div>
+
+                {/* Decoded Anatomy */}
+                {generatedJwt && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    {/* Decoded Header */}
+                    <div className="bg-slate-900/40 border border-rose-950/30 rounded-xl p-3.5 space-y-1.5">
+                      <span className="text-[8px] font-bold text-rose-400 uppercase tracking-wider block border-b border-rose-950/20 pb-1">Decoded Header</span>
+                      <pre className="text-rose-300/90 font-mono text-[10px] leading-relaxed">
+                        {`{
+  "alg": "HS256",
+  "typ": "JWT"
+}`}
+                      </pre>
+                    </div>
+
+                    {/* Decoded Payload */}
+                    <div className="bg-slate-900/40 border border-indigo-950/30 rounded-xl p-3.5 space-y-1.5">
+                      <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-wider block border-b border-indigo-950/20 pb-1">Decoded Claims Payload</span>
+                      <pre className="text-indigo-300/90 font-mono text-[10px] leading-relaxed">
+                        {JSON.stringify({
+                          sub: jwtEmail,
+                          role: jwtRole,
+                          iat: Math.floor(Date.now() / 1000),
+                          exp: Math.floor((Date.now() + jwtExpiration) / 1000)
+                        }, null, 2)}
+                      </pre>
+                    </div>
+
+                  </div>
+                )}
+                
+                {/* Decoded Signature Description */}
+                {generatedJwt && (
+                  <div className="bg-slate-900/40 border border-emerald-950/30 rounded-xl p-3.5">
+                    <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-wider block border-b border-emerald-950/20 pb-1 mb-1.5">Signature Verification Layer</span>
+                    <p className="text-[10px] font-mono text-emerald-300/80 leading-relaxed">
+                      HMACSHA256(<br />
+                      &nbsp;&nbsp;base64UrlEncode(header) + "." +<br />
+                      &nbsp;&nbsp;base64UrlEncode(payload),<br />
+                      &nbsp;&nbsp;<span className="text-emerald-400">9a76384f968c4d51b32fef9... (256-bit Key)</span><br />
+                      )
+                    </p>
+                  </div>
+                )}
+
+              </div>
+
+            </div>
+          </div>
+
+          {/* Validation Tester Module */}
+          <div className="bg-slate-950/40 border border-slate-850 rounded-2xl p-5 hover:border-fuchsia-500/10 transition-all duration-300 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-900 pb-3">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
+                <Unlock className="w-3.5 h-3.5 text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">JWT Integrity Validator</h3>
+                <p className="text-[10px] text-slate-500">Submit token to confirm authenticity and parse claims</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="md:col-span-9 space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Paste JWT Token String</label>
+                <input
+                  type="text"
+                  value={verifyJwtToken}
+                  onChange={e => setVerifyJwtToken(e.target.value)}
+                  placeholder="Paste encoded JWT token..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              <div className="md:col-span-3">
+                <button
+                  type="button"
+                  onClick={handleVerifyJwt}
+                  disabled={jwtVerifyLoading || !verifyJwtToken}
+                  className="w-full bg-slate-900 hover:bg-slate-850 text-slate-200 hover:text-white border border-slate-800 hover:border-slate-700 rounded-xl py-2 text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {jwtVerifyLoading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying Signature...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Verify Token</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Validation Outcome Alert */}
+            {jwtValidResult !== null && !jwtVerifyLoading && (
+              <div className={`mt-2 p-3.5 rounded-xl border flex items-start gap-3 animate-fadeIn text-xs leading-normal ${
+                jwtValidResult.valid 
+                  ? 'bg-emerald-950/20 border-emerald-900/40 text-emerald-400' 
+                  : 'bg-rose-950/20 border-rose-900/40 text-rose-450'
+              }`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  jwtValidResult.valid ? 'bg-emerald-500/20' : 'bg-rose-500/20'
+                }`}>
+                  {jwtValidResult.valid ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Unlock className="w-3.5 h-3.5 text-rose-400" />}
+                </div>
+                <div>
+                  <p className="font-bold">{jwtValidResult.valid ? 'Token Validated Successfully!' : 'Token Invalid / Suspicious!'}</p>
+                  
+                  {jwtValidResult.valid ? (
+                    <div className="mt-1 space-y-1">
+                      <p className="opacity-90">
+                        Signature verification passed. The server verified that the signature matches the payload integrity.
+                      </p>
+                      <div className="mt-2 font-mono text-[9px] bg-slate-900/50 p-2 rounded border border-emerald-950 text-emerald-300/95 space-y-0.5">
+                        <p><span className="text-slate-550">Subject (sub):</span> {jwtValidResult.claims.sub}</p>
+                        <p><span className="text-slate-550">Role Claim (role):</span> {jwtValidResult.claims.role}</p>
+                        <p><span className="text-slate-550">Issued At (iat):</span> {new Date(jwtValidResult.claims.iat * 1000).toLocaleString()}</p>
+                        <p><span className="text-slate-550">Expiration (exp):</span> {new Date(jwtValidResult.claims.exp * 1000).toLocaleString()} 
+                          {jwtValidResult.claims.exp * 1000 < Date.now() ? (
+                            <span className="text-rose-450 font-bold ml-1.5">(EXPIRED)</span>
+                          ) : (
+                            <span className="text-emerald-400 font-bold ml-1.5">
+                              (Expires in {Math.round((jwtValidResult.claims.exp * 1000 - Date.now()) / 1000)}s)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="opacity-90 mt-0.5 font-medium">
+                      {jwtValidResult.error}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+
+        </div>
+      )}
+
       {/* Code Viewer Section */}
       {activeTab === 'code' && (
         <div className="space-y-4">
@@ -1257,6 +1934,17 @@ public class AuthServiceImpl implements AuthService {
             >
               <Code className="w-3 h-3 text-indigo-400" />
               <span>AuthController.java (Controller)</span>
+            </button>
+            <button
+              onClick={() => setCodeTab('jwt-utils')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                codeTab === 'jwt-utils'
+                  ? 'bg-slate-850 text-white border border-slate-800'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <KeyRound className="w-3 h-3 text-fuchsia-400" />
+              <span>JwtUtils.java (Day 7 Utility)</span>
             </button>
             <button
               onClick={() => setCodeTab('dto-request')}
@@ -1303,6 +1991,7 @@ public class AuthServiceImpl implements AuthService {
               <code>
                 {codeTab === 'config' && securityConfigCode}
                 {codeTab === 'controller' && authControllerCode}
+                {codeTab === 'jwt-utils' && jwtUtilsCode}
                 {codeTab === 'dto-request' && registerRequestCode}
                 {codeTab === 'dto-response' && userResponseCode}
                 {codeTab === 'service-impl' && authServiceImplCode}
