@@ -1,26 +1,24 @@
 import React, { useState } from 'react';
+import useAuthStore from '../../store/authStore';
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
+export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('BUYER');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const { isLoading, register, login, backendStatus } = useAuthStore();
 
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
-  const validateEmail = (email) => {
-    return /\S+@\S+\.\S+/.test(email);
-  };
+  const validateEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,85 +37,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
       return;
     }
 
-    setLoading(true);
+    if (backendStatus === 'offline') {
+      setError('Unable to connect to the server. Please ensure the backend is running and try again.');
+      return;
+    }
 
-    try {
-      if (isSignUp) {
-        // Sign Up (Registration) Day 6
-        if (status === 'live') {
-          const response = await fetch('http://localhost:8085/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password, role }),
-          });
-          const data = await response.json();
-          if (response.ok) {
-            if (data.token) {
-              localStorage.setItem('shopease_token', data.token);
-            }
-            onAuthSuccess(data, 'Successfully registered!');
-            onClose();
-          } else {
-            setError(data.error || 'Registration failed');
-          }
-        } else {
-          // Sandbox Mode Fallback
-          // Wait for UX feel
-          await new Promise((resolve) => setTimeout(resolve, 800));
-          const mockUser = {
-            id: Math.floor(Math.random() * 1000) + 10,
-            name,
-            email,
-            role,
-            avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${name.replace(/\s+/g, '')}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          localStorage.setItem('shopease_token', 'mock-sandbox-token-' + Math.random().toString(36).substring(2));
-          onAuthSuccess(mockUser, 'Registered successfully in Sandbox Mode!');
-          onClose();
-        }
-      } else {
-        // Sign In (Login) - Day 8
-        if (status === 'live') {
-          try {
-            const response = await fetch('http://localhost:8085/api/auth/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password }),
-            });
-            const data = await response.json();
-            if (response.ok) {
-              if (data.token) {
-                localStorage.setItem('shopease_token', data.token);
-              }
-              onAuthSuccess(data.user, 'Logged in successfully!');
-              onClose();
-            } else {
-              setError(data.error || data.message || 'Invalid credentials');
-            }
-          } catch (e) {
-            setError('Could not connect to the authentication server. Please try again.');
-          }
-        } else {
-          // Sandbox Mode Fallback Login
-          await new Promise((resolve) => setTimeout(resolve, 600));
-          const mockUser = {
-            id: 1,
-            name: email.split('@')[0],
-            email,
-            role: 'BUYER',
-            avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.split('@')[0]}`,
-          };
-          localStorage.setItem('shopease_token', 'mock-sandbox-token-' + Math.random().toString(36).substring(2));
-          onAuthSuccess(mockUser, 'Logged in successfully (Sandbox)!');
-          onClose();
-        }
-      }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setLoading(false);
+    let result;
+    if (isSignUp) {
+      result = await register({ name, email, password, role });
+    } else {
+      result = await login({ email, password });
+    }
+
+    if (result.success) {
+      onAuthSuccess(result.user, result.message);
+      onClose();
+    } else {
+      setError(result.error);
     }
   };
 
@@ -125,14 +61,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
     <div
       onClick={handleBackdropClick}
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+      id="auth-modal-backdrop"
     >
       <div className="w-full max-w-md bg-white border border-[#E7E5E4] rounded-3xl shadow-2xl overflow-hidden animate-scaleIn">
-        {/* Modal Header */}
+        {/* Header */}
         <div className="relative px-8 pt-8 pb-5 border-b border-[#F3F0EA]">
           <button
             onClick={onClose}
             className="absolute top-6 right-6 p-2 rounded-full hover:bg-[#F3F0EA] text-[#78716C] hover:text-[#1C1917] transition-all"
             aria-label="Close modal"
+            id="auth-modal-close"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -146,39 +84,43 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
             {isSignUp ? 'Start shopping from top-tier sellers today.' : 'Sign in to access your cart, orders, and profile.'}
           </p>
 
+          {/* Backend status indicator */}
+          {backendStatus === 'offline' && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200/60 rounded-xl">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+              <span className="text-[10px] font-medium text-amber-700">Server is currently unreachable. Authentication requires a running backend.</span>
+            </div>
+          )}
+
           {/* Tab Switcher */}
           <div className="flex bg-[#F3F0EA] p-1 rounded-xl mt-5 border border-[#E7E5E4]">
             <button
               type="button"
-              onClick={() => {
-                setIsSignUp(false);
-                setError('');
-              }}
+              onClick={() => { setIsSignUp(false); setError(''); }}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
                 !isSignUp ? 'bg-white text-[#1C1917] shadow-sm' : 'text-[#78716C] hover:text-[#1C1917]'
               }`}
+              id="auth-tab-signin"
             >
               Sign In
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsSignUp(true);
-                setError('');
-              }}
+              onClick={() => { setIsSignUp(true); setError(''); }}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
                 isSignUp ? 'bg-white text-[#1C1917] shadow-sm' : 'text-[#78716C] hover:text-[#1C1917]'
               }`}
+              id="auth-tab-signup"
             >
               Sign Up
             </button>
           </div>
         </div>
 
-        {/* Modal Form */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200/50 rounded-xl text-xs text-red-600 flex items-center gap-2 animate-shake">
+            <div className="p-3 bg-red-50 border border-red-200/50 rounded-xl text-xs text-red-600 flex items-center gap-2 animate-shake" id="auth-error">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
@@ -198,6 +140,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="John Doe"
                 className="w-full bg-[#F3F0EA]/50 border border-[#E7E5E4] rounded-xl px-4 py-3 text-xs text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:bg-white focus:border-[#4A6741] focus:ring-1 focus:ring-[#4A6741] transition-all"
+                id="auth-name-input"
               />
             </div>
           )}
@@ -211,6 +154,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="w-full bg-[#F3F0EA]/50 border border-[#E7E5E4] rounded-xl px-4 py-3 text-xs text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:bg-white focus:border-[#4A6741] focus:ring-1 focus:ring-[#4A6741] transition-all"
+              id="auth-email-input"
             />
           </div>
 
@@ -231,6 +175,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full bg-[#F3F0EA]/50 border border-[#E7E5E4] rounded-xl pl-4 pr-10 py-3 text-xs text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:bg-white focus:border-[#4A6741] focus:ring-1 focus:ring-[#4A6741] transition-all font-mono"
+                id="auth-password-input"
               />
               <button
                 type="button"
@@ -267,6 +212,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
                       ? 'bg-[#4A6741]/10 border-[#4A6741] text-[#4A6741]'
                       : 'border-[#E7E5E4] text-[#78716C] hover:border-[#D6D3CE]'
                   }`}
+                  id="auth-role-buyer"
                 >
                   Buyer
                 </button>
@@ -278,6 +224,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
                       ? 'bg-[#4A6741]/10 border-[#4A6741] text-[#4A6741]'
                       : 'border-[#E7E5E4] text-[#78716C] hover:border-[#D6D3CE]'
                   }`}
+                  id="auth-role-seller"
                 >
                   Seller
                 </button>
@@ -287,10 +234,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isLoading || backendStatus === 'offline'}
             className="w-full bg-[#1C1917] hover:bg-[#292524] text-white rounded-xl py-3 text-xs font-semibold transition-all shadow-md shadow-black/5 hover:shadow-black/10 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none mt-6 flex items-center justify-center gap-2"
+            id="auth-submit-btn"
           >
-            {loading ? (
+            {isLoading ? (
               <>
                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

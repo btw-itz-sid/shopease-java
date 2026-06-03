@@ -15,8 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service implementation for authentication operations.
- * Day 6: Handles user validation, password hashing, and user persistence.
- * Day 8: Handles user login authentication and JWT token generation.
+ * Handles user validation, password hashing, persistence, login, and JWT token generation.
  */
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -40,7 +39,7 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Email is already registered!");
         }
 
-        // 2. Hash plain password securely via Day 5 BCrypt bean
+        // 2. Hash plain password securely via BCrypt
         String hashedPassword = passwordEncoder.encode(request.getPassword());
 
         // 3. Build and persist User entity

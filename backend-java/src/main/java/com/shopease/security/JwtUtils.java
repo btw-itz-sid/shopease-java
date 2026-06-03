@@ -13,7 +13,7 @@ import java.util.Date;
 
 /**
  * Utility class for JSON Web Token (JWT) handling.
- * Day 7: Handles token generation, signature validation, and claims parsing.
+ * Handles token generation, signature validation, and claims parsing.
  */
 @Component
 public class JwtUtils {

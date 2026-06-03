@@ -18,10 +18,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Authentication and Security verification controller.
- * Day 5: Exposes REST API endpoints to perform password hashing.
- * Day 6: Exposes registration endpoint with input validation and uniqueness checking.
- * Day 7: Exposes JWT token generation and validation helper endpoints.
+ * Authentication controller.
+ * Handles user registration, login, and security utility endpoints.
  */
 @RestController
 @RequestMapping("/auth")

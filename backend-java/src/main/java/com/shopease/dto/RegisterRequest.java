@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * Data Transfer Object representing a user registration request.
- * Handled on Day 6 for input validation.
  */
 @Data
 @NoArgsConstructor

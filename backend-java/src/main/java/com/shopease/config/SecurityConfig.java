@@ -1,20 +1,31 @@
 package com.shopease.config;
 
+import com.shopease.security.JwtFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Spring Security configuration for ShopEase.
- * Day 5: Configures BCryptPasswordEncoder for secure password hashing
- * and sets up basic security filter rules.
+ * Configures BCryptPasswordEncoder, stateless session management,
+ * custom JWT filter integration, and endpoint access control policies.
  */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private final JwtFilter jwtFilter;
+
+    @Autowired
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
+    }
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
@@ -24,10 +35,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF as we use stateless APIs / tokens
+            .csrf(csrf -> csrf.disable()) // Disable CSRF as we use stateless JWT tokens
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll() // Permit all requests temporarily; Day 8 will secure endpoints
-            );
+                // Public auth endpoints
+                .requestMatchers("/auth/**").permitAll()
+                // Protected test endpoints
+                .requestMatchers("/api/test/secure-resource").authenticated()
+                .requestMatchers("/api/test/buyer-only").hasRole("BUYER")
+                .requestMatchers("/api/test/seller-only").hasRole("SELLER")
+                // Default: permit all other requests (tighten as new endpoints are added)
+                .anyRequest().permitAll()
+            )
+            // Add custom JWT filter before the standard UsernamePasswordAuthenticationFilter
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 }

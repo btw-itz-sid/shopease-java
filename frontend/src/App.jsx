@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import JPAVisualizer from './components/buyer/JPAVisualizer';
-import SecurityVisualizer from './components/buyer/SecurityVisualizer';
 import CategoryShowcase from './components/buyer/CategoryShowcase';
 import ProductCard from './components/buyer/ProductCard';
 import EntityDetailModal from './components/buyer/EntityDetailModal';
 import AuthModal from './components/buyer/AuthModal';
+import useAuthStore from './store/authStore';
 import { mockCategories, mockProducts } from './utils/mockData';
 
 
@@ -84,7 +83,6 @@ const I = {
   headphones: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3v5zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3v5z"/></svg>,
   star: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
   arrow: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>,
-  code: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
   check: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   x: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>,
   menu: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 8h16M4 16h16"/></svg>,
@@ -92,6 +90,7 @@ const I = {
   twitter: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
   github: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>,
   play: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>,
+  chevUp: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
 };
 
 /* ─── Promo Banner ─── */
@@ -111,7 +110,6 @@ function PromoBanner() {
 
 /* ═══ App ═══ */
 export default function App() {
-  const [viewMode, setViewMode] = useState('store');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState(1200);
@@ -119,68 +117,40 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [toast, setToast] = useState(null);
-  const [devOpen, setDevOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
-
-  // Authentication & Session States
-  const [currentUser, setCurrentUser] = useState(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [backendStatus, setBackendStatus] = useState('checking');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Auth store
+  const { user: currentUser, isAuthenticated, initialize, signOut } = useAuthStore();
 
   useEffect(() => {
-    // Check local storage for session
-    const storedUser = localStorage.getItem('shopease_user');
-    if (storedUser) {
-      try {
-        setCurrentUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem('shopease_user');
-      }
-    }
+    initialize();
+  }, [initialize]);
 
-    // Health check the backend on load
-    const checkBackend = async () => {
-      try {
-        const response = await fetch('http://localhost:8085/api/auth/hash-test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: 'ping' })
-        });
-        if (response.ok || response.status === 400) {
-          setBackendStatus('live');
-        } else {
-          setBackendStatus('offline');
-        }
-      } catch (err) {
-        setBackendStatus('offline');
-      }
+  useEffect(() => {
+    const fn = () => {
+      setScrolled(window.scrollY > 10);
+      setShowBackToTop(window.scrollY > 600);
     };
-    checkBackend();
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
   }, []);
 
   const handleAuthSuccess = (user, message) => {
-    setCurrentUser(user);
-    localStorage.setItem('shopease_user', JSON.stringify(user));
     setToast(message || 'Success!');
     setTimeout(() => setToast(null), 2500);
   };
 
   const handleSignOut = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('shopease_user');
+    signOut();
     setUserDropdownOpen(false);
     setToast('Signed out successfully');
     setTimeout(() => setToast(null), 2500);
   };
-
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', fn, { passive: true });
-    return () => window.removeEventListener('scroll', fn);
-  }, []);
-
 
   const addToCart = (p) => {
     setCartItems(prev => [...prev, p]);
@@ -201,37 +171,14 @@ export default function App() {
     return b.id - a.id;
   });
 
-  /* Dev view */
-  if (viewMode === 'jpa' || viewMode === 'security') {
-    return (
-      <div className="min-h-screen bg-[#FAF8F4] text-[#1C1917] font-sans antialiased">
-        <header className="border-b border-[#E7E5E4] bg-white sticky top-0 z-40">
-          <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-3">{I.logo}<span className="text-[15px] font-bold tracking-tight">ShopEase</span><span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-widest">Dev</span></div>
-            <button onClick={() => setViewMode('store')} className="px-4 py-2 rounded-lg text-xs font-medium text-[#57534E] hover:text-[#1C1917] bg-[#F3F0EA] hover:bg-[#E7E5E4] transition-all">← Back to Store</button>
-          </div>
-        </header>
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex gap-2 mb-6">
-            {['jpa','security'].map(m => (
-              <button key={m} onClick={() => setViewMode(m)} className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${viewMode===m?'bg-[#1C1917] text-white':'bg-[#F3F0EA] text-[#57534E] hover:text-[#1C1917]'}`}>
-                {m==='jpa'?'📐 Data Architecture':'🔒 Security Lab'}
-              </button>
-            ))}
-          </div>
-          {viewMode === 'jpa' ? <JPAVisualizer /> : <SecurityVisualizer />}
-        </div>
-      </div>
-    );
-  }
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  /* ═══ STORE ═══ */
   return (
     <div className="min-h-screen bg-[#FAF8F4] font-sans antialiased selection:bg-[#4A6741]/15">
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-[100] animate-fadeInUp">
+        <div className="fixed bottom-6 right-6 z-[100] animate-fadeInUp" id="toast-notification">
           <div className="bg-white border border-[#E7E5E4] pl-4 pr-5 py-3 rounded-xl shadow-lg shadow-black/5 flex items-center gap-2.5">
             <span className="w-5 h-5 rounded-full bg-[#4A6741] flex items-center justify-center text-white">{I.check}</span>
             <span className="text-[13px] text-[#1C1917] font-medium">{toast}</span>
@@ -239,33 +186,34 @@ export default function App() {
         </div>
       )}
 
-      {/* Dev toggle */}
-      <button onClick={() => setDevOpen(!devOpen)} className="fixed bottom-4 left-4 z-[100] w-8 h-8 rounded-lg bg-white border border-[#E7E5E4] shadow-sm flex items-center justify-center text-[#A8A29E] hover:text-[#1C1917] transition-all" title="Dev Console">{I.code}</button>
-      {devOpen && (
-        <div className="fixed bottom-14 left-4 z-[100] bg-white border border-[#E7E5E4] rounded-xl p-2 shadow-xl w-48 animate-scaleIn">
-          <p className="text-[8px] text-[#A8A29E] uppercase tracking-[0.15em] font-bold mb-1.5 px-2 pt-1">Developer</p>
-          {[{m:'jpa',l:'Data Architecture'},{m:'security',l:'Security Lab'}].map(({m,l})=>(
-            <button key={m} onClick={()=>{setViewMode(m);setDevOpen(false);}} className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA] transition-all">{l}</button>
-          ))}
-        </div>
+      {/* Back to Top */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 left-6 z-[90] w-10 h-10 rounded-full bg-white border border-[#E7E5E4] shadow-lg shadow-black/5 flex items-center justify-center text-[#78716C] hover:text-[#1C1917] hover:shadow-xl transition-all animate-fadeInUp"
+          aria-label="Back to top"
+          id="back-to-top-btn"
+        >
+          {I.chevUp}
+        </button>
       )}
 
       {/* ═══ MARQUEE ═══ */}
       <PromoBanner />
 
       {/* ═══ NAVBAR ═══ */}
-      <header className={`sticky top-0 z-50 transition-all duration-500 ${scrolled ? 'bg-white/80 backdrop-blur-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border-b border-[#E7E5E4]/60' : 'bg-[#FAF8F4]'}`}>
+      <header className={`sticky top-0 z-50 transition-all duration-500 ${scrolled ? 'bg-white/80 backdrop-blur-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border-b border-[#E7E5E4]/60' : 'bg-[#FAF8F4]'}`} id="main-header">
         <div className="max-w-7xl mx-auto px-6 sm:px-8">
           <div className="h-16 flex items-center justify-between gap-6">
 
             {/* Logo */}
-            <a href="#" className="flex items-center gap-2.5 flex-shrink-0">
+            <a href="#" className="flex items-center gap-2.5 flex-shrink-0" id="logo-link">
               {I.logo}
               <span className="text-[18px] font-bold tracking-tight text-[#1C1917]">ShopEase</span>
             </a>
 
             {/* Nav links */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1" id="main-nav">
               {['Home', 'Shop', 'Categories', 'Deals'].map(item => (
                 <a key={item} href={item === 'Shop' ? '#products' : item === 'Categories' ? '#categories' : '#'} className="relative px-4 py-2 text-[13px] font-medium text-[#57534E] hover:text-[#1C1917] transition-colors rounded-lg hover:bg-[#F3F0EA]/60">
                   {item}
@@ -273,30 +221,31 @@ export default function App() {
               ))}
             </nav>
 
-            {/* Search — expands on focus */}
+            {/* Search */}
             <div className={`hidden md:flex transition-all duration-300 ${searchFocused ? 'flex-1 max-w-lg' : 'w-64'}`}>
               <div className="relative w-full">
                 <input type="text" placeholder="Search products..." value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
-                  className="w-full bg-[#F3F0EA]/70 border border-transparent rounded-full pl-10 pr-4 py-2 text-[13px] text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:bg-white focus:border-[#D6D3CE] focus:shadow-sm transition-all" />
+                  className="w-full bg-[#F3F0EA]/70 border border-transparent rounded-full pl-10 pr-4 py-2 text-[13px] text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:bg-white focus:border-[#D6D3CE] focus:shadow-sm transition-all"
+                  id="search-input" />
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A8A29E]">{I.search}</span>
               </div>
             </div>
 
-            {/* Right */}
+            {/* Right Actions */}
             <div className="flex items-center gap-0.5 relative">
-              {currentUser ? (
+              {isAuthenticated && currentUser ? (
                 <div className="relative">
-                  <button 
-                    onClick={() => setUserDropdownOpen(!userDropdownOpen)} 
+                  <button
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-[#F3F0EA]/75 hover:bg-[#E7E5E4] border border-[#E7E5E4]/40 transition-all focus:outline-none"
                     id="profile-dropdown-btn"
                   >
-                    <img 
-                      src={currentUser.avatarUrl || currentUser.avatar_url || `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUser.name}`} 
-                      alt="User Avatar" 
+                    <img
+                      src={currentUser.avatarUrl || currentUser.avatar_url || `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUser.name}`}
+                      alt="User Avatar"
                       className="w-6 h-6 rounded-full border border-white object-cover"
                     />
                     <span className="text-[12px] font-semibold text-[#1C1917] hidden sm:inline max-w-[80px] truncate">{currentUser.name}</span>
@@ -305,31 +254,39 @@ export default function App() {
 
                   {userDropdownOpen && (
                     <>
-                      {/* Invisible backdrop to dismiss dropdown */}
                       <div className="fixed inset-0 z-30" onClick={() => setUserDropdownOpen(false)}></div>
-                      <div className="absolute right-0 mt-2 w-52 bg-white border border-[#E7E5E4] rounded-2xl shadow-xl py-2 z-40 animate-scaleIn">
+                      <div className="absolute right-0 mt-2 w-52 bg-white border border-[#E7E5E4] rounded-2xl shadow-xl py-2 z-40 animate-scaleIn" id="user-dropdown">
                         <div className="px-4 py-2.5 border-b border-[#F3F0EA]">
                           <p className="text-xs font-bold text-[#1C1917] truncate">{currentUser.name}</p>
                           <p className="text-[10px] text-[#78716C] truncate mt-0.5">{currentUser.email}</p>
                           <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#4A6741]/10 text-[#4A6741] uppercase tracking-wider">{currentUser.role}</span>
                         </div>
-                        <button 
-                          onClick={() => { setViewMode('store'); setUserDropdownOpen(false); }}
+                        <button
+                          onClick={() => { setUserDropdownOpen(false); }}
                           className="w-full text-left px-4 py-2 text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA] transition-all"
+                          id="my-orders-btn"
                         >
                           My Orders
                         </button>
-                        <button 
-                          onClick={() => { setViewMode('security'); setUserDropdownOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA] transition-all flex items-center gap-1.5"
+                        <button
+                          onClick={() => { setUserDropdownOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA] transition-all"
+                          id="my-wishlist-btn"
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
-                          Security Lab
+                          Wishlist
+                        </button>
+                        <button
+                          onClick={() => { setUserDropdownOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-xs font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA] transition-all"
+                          id="account-settings-btn"
+                        >
+                          Account Settings
                         </button>
                         <hr className="my-1 border-[#F3F0EA]" />
-                        <button 
+                        <button
                           onClick={handleSignOut}
                           className="w-full text-left px-4 py-2 text-xs font-semibold text-red-650 hover:bg-red-50 transition-all"
+                          id="sign-out-btn"
                         >
                           Sign Out
                         </button>
@@ -338,8 +295,8 @@ export default function App() {
                   )}
                 </div>
               ) : (
-                <button 
-                  onClick={() => setAuthModalOpen(true)} 
+                <button
+                  onClick={() => setAuthModalOpen(true)}
                   className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all"
                   title="Sign In / Register"
                   id="login-btn"
@@ -347,11 +304,10 @@ export default function App() {
                   {I.user}
                 </button>
               )}
-              <button className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all">{I.heart}</button>
-
+              <button className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all" id="wishlist-btn">{I.heart}</button>
 
               {/* Cart CTA */}
-              <button className="relative flex items-center gap-2 ml-2 pl-3.5 pr-4 py-2 rounded-full bg-[#1C1917] text-white text-[13px] font-semibold hover:bg-[#292524] active:scale-[0.97] transition-all">
+              <button className="relative flex items-center gap-2 ml-2 pl-3.5 pr-4 py-2 rounded-full bg-[#1C1917] text-white text-[13px] font-semibold hover:bg-[#292524] active:scale-[0.97] transition-all" id="cart-btn">
                 {I.cart}
                 <span className="hidden sm:inline">Cart</span>
                 {cartItems.length > 0 && (
@@ -359,15 +315,55 @@ export default function App() {
                 )}
               </button>
 
-              <button className="lg:hidden w-9 h-9 flex items-center justify-center ml-1 rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all">{I.menu}</button>
+              {/* Mobile menu */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden w-9 h-9 flex items-center justify-center ml-1 rounded-lg text-[#78716C] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 transition-all"
+                id="mobile-menu-btn"
+              >
+                {I.menu}
+              </button>
             </div>
           </div>
+
+          {/* Mobile menu drawer */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden border-t border-[#E7E5E4] py-4 animate-slideDown" id="mobile-menu-drawer">
+              <nav className="flex flex-col gap-1">
+                {['Home', 'Shop', 'Categories', 'Deals'].map(item => (
+                  <a key={item} href={item === 'Shop' ? '#products' : item === 'Categories' ? '#categories' : '#'}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-2.5 text-[14px] font-medium text-[#57534E] hover:text-[#1C1917] hover:bg-[#F3F0EA]/60 rounded-lg transition-all">
+                    {item}
+                  </a>
+                ))}
+                {!isAuthenticated && (
+                  <button
+                    onClick={() => { setMobileMenuOpen(false); setAuthModalOpen(true); }}
+                    className="mt-2 mx-4 py-2.5 rounded-full bg-[#1C1917] text-white text-[13px] font-semibold text-center hover:bg-[#292524] transition-all"
+                    id="mobile-login-btn"
+                  >
+                    Sign In / Register
+                  </button>
+                )}
+              </nav>
+              {/* Mobile search */}
+              <div className="mt-3 px-4 md:hidden">
+                <div className="relative">
+                  <input type="text" placeholder="Search products..." value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full bg-[#F3F0EA]/70 border border-transparent rounded-full pl-10 pr-4 py-2.5 text-[13px] text-[#1C1917] placeholder-[#A8A29E] focus:outline-none focus:bg-white focus:border-[#D6D3CE] focus:shadow-sm transition-all"
+                    id="mobile-search-input" />
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A8A29E]">{I.search}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
       {/* ═══ HERO ═══ */}
-      <section className="relative overflow-hidden">
-        {/* Soft organic shapes — not circles, not gradients — just texture */}
+      <section className="relative overflow-hidden" id="hero-section">
         <svg className="absolute top-0 right-0 w-[600px] h-[600px] -translate-y-1/3 translate-x-1/4 opacity-[0.04]" viewBox="0 0 600 600" fill="none">
           <path d="M300 50C420 50 550 130 550 300C550 470 420 550 300 550C180 550 50 470 50 300C50 130 180 50 300 50Z" fill="#4A6741"/>
         </svg>
@@ -380,7 +376,6 @@ export default function App() {
 
             {/* Left — Copy */}
             <div className="space-y-8">
-              {/* Badge */}
               <div className="animate-fadeInUp" style={{animationDelay:'0.1s'}}>
                 <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#4A6741]/8 border border-[#4A6741]/12 text-[12px] font-semibold text-[#4A6741] tracking-wide">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#4A6741] animate-pulse" />
@@ -388,7 +383,6 @@ export default function App() {
                 </span>
               </div>
 
-              {/* Heading with rotating word */}
               <div className="animate-fadeInUp" style={{animationDelay:'0.25s'}}>
                 <h1 className="text-[40px] sm:text-[52px] lg:text-[60px] font-extrabold tracking-[-0.03em] leading-[1.05] text-[#1C1917]">
                   Products That<br />
@@ -398,23 +392,20 @@ export default function App() {
                 </h1>
               </div>
 
-              {/* Subtext */}
               <p className="text-[16px] sm:text-[17px] text-[#78716C] max-w-md leading-[1.7] animate-fadeInUp" style={{animationDelay:'0.4s'}}>
                 Curated electronics, designer furniture, and smart living essentials — from verified sellers worldwide.
               </p>
 
-              {/* CTAs */}
               <div className="flex flex-wrap items-center gap-3 animate-fadeInUp" style={{animationDelay:'0.55s'}}>
-                <a href="#products" className="group inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-[#1C1917] text-white text-[14px] font-semibold hover:bg-[#292524] active:scale-[0.97] transition-all shadow-md shadow-black/8">
+                <a href="#products" className="group inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-[#1C1917] text-white text-[14px] font-semibold hover:bg-[#292524] active:scale-[0.97] transition-all shadow-md shadow-black/8" id="shop-now-btn">
                   Shop Now
                   <span className="group-hover:translate-x-0.5 transition-transform">{I.arrow}</span>
                 </a>
-                <a href="#categories" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-white border border-[#E7E5E4] text-[14px] font-medium text-[#44403C] hover:text-[#1C1917] hover:border-[#D6D3CE] hover:shadow-sm transition-all">
+                <a href="#categories" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-white border border-[#E7E5E4] text-[14px] font-medium text-[#44403C] hover:text-[#1C1917] hover:border-[#D6D3CE] hover:shadow-sm transition-all" id="explore-btn">
                   Explore Collections
                 </a>
               </div>
 
-              {/* Stats */}
               <div className="flex items-center gap-8 pt-4 animate-fadeInUp" style={{animationDelay:'0.7s'}}>
                 {[
                   { value: 500, suffix: '+', label: 'Products' },
@@ -432,22 +423,20 @@ export default function App() {
             {/* Right — Image grid */}
             <div className="relative hidden lg:block">
               <div className="grid grid-cols-12 gap-3">
-                {/* Main large image */}
                 <div className="col-span-7 animate-fadeInUp" style={{animationDelay:'0.3s'}}>
                   <div className="img-zoom rounded-[20px] overflow-hidden shadow-xl shadow-black/8">
-                    <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80" alt="Headphones" className="w-full aspect-[3/4] object-cover" />
+                    <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80" alt="Premium headphones" className="w-full aspect-[3/4] object-cover" />
                   </div>
                 </div>
-                {/* Stacked right */}
                 <div className="col-span-5 flex flex-col gap-3 pt-10">
                   <div className="animate-fadeInUp" style={{animationDelay:'0.45s'}}>
                     <div className="img-zoom rounded-[20px] overflow-hidden shadow-lg shadow-black/6">
-                      <img src="https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&auto=format&fit=crop&q=80" alt="Phone" className="w-full aspect-square object-cover" />
+                      <img src="https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&auto=format&fit=crop&q=80" alt="Latest smartphone" className="w-full aspect-square object-cover" />
                     </div>
                   </div>
                   <div className="animate-fadeInUp" style={{animationDelay:'0.6s'}}>
                     <div className="img-zoom rounded-[20px] overflow-hidden shadow-lg shadow-black/6">
-                      <img src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400&auto=format&fit=crop&q=80" alt="Furniture" className="w-full aspect-[4/3] object-cover" />
+                      <img src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400&auto=format&fit=crop&q=80" alt="Modern furniture" className="w-full aspect-[4/3] object-cover" />
                     </div>
                   </div>
                 </div>
@@ -477,7 +466,7 @@ export default function App() {
       </section>
 
       {/* ═══ VALUE PROPS ═══ */}
-      <section className="border-y border-[#E7E5E4] bg-white">
+      <section className="border-y border-[#E7E5E4] bg-white" id="value-props">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 py-5">
           <Reveal>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 divide-x-0 lg:divide-x divide-[#F3F0EA]">
@@ -486,7 +475,7 @@ export default function App() {
                 { icon: I.shield, title: 'Secure Payments', desc: '256-bit encrypted' },
                 { icon: I.refresh, title: 'Easy Returns', desc: '30-day policy' },
                 { icon: I.headphones, title: '24/7 Support', desc: 'Expert assistance' },
-              ].map(({ icon, title, desc }, i) => (
+              ].map(({ icon, title, desc }) => (
                 <div key={title} className="flex items-center gap-3 px-4 first:pl-0">
                   <span className="text-[#44403C] flex-shrink-0">{icon}</span>
                   <div>
@@ -512,18 +501,18 @@ export default function App() {
           {/* Sidebar */}
           <Reveal className="lg:col-span-1">
             <div className="bg-white border border-[#E7E5E4] rounded-2xl p-5 space-y-5 sticky top-24">
-              <h3 className="text-[13px] font-semibold text-[#1C1917] flex items-center gap-2">
+              <h3 className="text-[13px] font-semibold text-[#1C1917] flex items-center gap-2" id="filters-heading">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1C1917" strokeWidth="2" strokeLinecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
                 Filters
               </h3>
               <div className="space-y-2.5">
                 <div className="flex justify-between text-xs"><span className="text-[#78716C]">Price Range</span><span className="text-[#1C1917] font-semibold">${priceRange}</span></div>
-                <input type="range" min="40" max="1200" step="10" value={priceRange} onChange={e=>setPriceRange(+e.target.value)} className="w-full" />
+                <input type="range" min="40" max="1200" step="10" value={priceRange} onChange={e=>setPriceRange(+e.target.value)} className="w-full" id="price-range-slider" />
                 <div className="flex justify-between text-[10px] text-[#A8A29E]"><span>$40</span><span>$1,200</span></div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs text-[#78716C] font-medium">Sort By</label>
-                <select value={sortOption} onChange={e=>setSortOption(e.target.value)} className="w-full bg-[#F3F0EA] border border-[#E7E5E4] rounded-lg px-3 py-2 text-xs text-[#1C1917] focus:outline-none focus:border-[#D6D3CE]">
+                <select value={sortOption} onChange={e=>setSortOption(e.target.value)} className="w-full bg-[#F3F0EA] border border-[#E7E5E4] rounded-lg px-3 py-2 text-xs text-[#1C1917] focus:outline-none focus:border-[#D6D3CE]" id="sort-select">
                   <option value="newest">Newest First</option>
                   <option value="price_asc">Price: Low → High</option>
                   <option value="price_desc">Price: High → Low</option>
@@ -543,7 +532,7 @@ export default function App() {
               <div className="flex justify-between items-center mb-6">
                 <p className="text-sm text-[#78716C]">Showing <span className="text-[#1C1917] font-semibold">{filtered.length}</span> products</p>
                 {selectedCategory && (
-                  <button onClick={() => setSelectedCategory(null)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F3F0EA] border border-[#E7E5E4] text-xs text-[#44403C] font-medium hover:bg-[#E7E5E4] transition-all">
+                  <button onClick={() => setSelectedCategory(null)} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F3F0EA] border border-[#E7E5E4] text-xs text-[#44403C] font-medium hover:bg-[#E7E5E4] transition-all" id="clear-category-btn">
                     {selectedCategory.name}<span>{I.x}</span>
                   </button>
                 )}
@@ -557,7 +546,7 @@ export default function App() {
               <Reveal>
                 <div className="py-20 text-center border border-dashed border-[#E7E5E4] rounded-2xl bg-white">
                   <p className="text-[#A8A29E] text-sm mb-4">No products match your filters</p>
-                  <button onClick={() => {setSelectedCategory(null);setSearchQuery('');setPriceRange(1200);setSortOption('newest');}} className="px-5 py-2.5 rounded-full bg-[#1C1917] text-xs font-semibold text-white hover:bg-[#292524] transition-all">Clear All Filters</button>
+                  <button onClick={() => {setSelectedCategory(null);setSearchQuery('');setPriceRange(1200);setSortOption('newest');}} className="px-5 py-2.5 rounded-full bg-[#1C1917] text-xs font-semibold text-white hover:bg-[#292524] transition-all" id="clear-filters-btn">Clear All Filters</button>
                 </div>
               </Reveal>
             )}
@@ -565,16 +554,63 @@ export default function App() {
         </div>
       </section>
 
+      {/* ═══ TRENDING ═══ */}
+      <section className="bg-white border-y border-[#E7E5E4]" id="trending-section">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 py-14">
+          <Reveal>
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <p className="text-xs font-semibold text-[#4A6741] uppercase tracking-widest mb-2">Popular Right Now</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#1C1917] tracking-tight">Trending Products</h2>
+              </div>
+              <a href="#products" className="text-xs font-medium text-[#78716C] hover:text-[#1C1917] transition-colors flex items-center gap-1.5 group">
+                View All
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </Reveal>
+          <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+            {mockProducts.sort((a, b) => b.ratingCount - a.ratingCount).slice(0, 4).map((p, i) => {
+              const images = JSON.parse(p.images);
+              return (
+                <Reveal key={p.id} delay={Math.min(i+1, 4)}>
+                  <div
+                    onClick={() => setSelectedProduct(p)}
+                    className="flex-shrink-0 w-[260px] snap-start group cursor-pointer bg-[#FAF8F4] border border-[#E7E5E4] rounded-2xl overflow-hidden hover:shadow-lg hover:shadow-black/5 transition-all duration-500"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden">
+                      <img src={images[0]} alt={p.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+                      <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[9px] font-bold bg-[#4A6741] text-white uppercase tracking-wider">Trending</div>
+                    </div>
+                    <div className="p-4">
+                      <h4 className="text-[13px] font-semibold text-[#1C1917] line-clamp-1">{p.title}</h4>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[15px] font-bold text-[#1C1917]">${p.price.toFixed(2)}</span>
+                        <div className="flex items-center gap-1 text-[11px]">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#D97706"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                          <span className="font-semibold text-[#1C1917]">{p.rating.toFixed(1)}</span>
+                          <span className="text-[#A8A29E]">({p.ratingCount})</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ═══ NEWSLETTER ═══ */}
-      <section className="bg-[#1C1917]">
+      <section className="bg-[#1C1917]" id="newsletter-section">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 py-16 sm:py-20">
           <Reveal>
             <div className="max-w-xl mx-auto text-center">
               <h2 className="text-2xl sm:text-[32px] font-bold text-white tracking-tight leading-tight">Stay in the loop</h2>
               <p className="text-[14px] text-[#A8A29E] mt-3 mb-8 leading-relaxed">New arrivals, exclusive deals, and curated collections — delivered to your inbox.</p>
               <div className="flex gap-3 max-w-md mx-auto">
-                <input type="email" placeholder="Enter your email" className="flex-1 bg-white/8 border border-white/10 rounded-full px-5 py-3 text-sm text-white placeholder-[#78716C] focus:outline-none focus:border-white/20 transition-all" />
-                <button className="px-6 py-3 rounded-full bg-white text-[#1C1917] text-[13px] font-semibold hover:bg-[#F3F0EA] active:scale-[0.97] transition-all flex-shrink-0">Subscribe</button>
+                <input type="email" placeholder="Enter your email" className="flex-1 bg-white/8 border border-white/10 rounded-full px-5 py-3 text-sm text-white placeholder-[#78716C] focus:outline-none focus:border-white/20 transition-all" id="newsletter-email" />
+                <button className="px-6 py-3 rounded-full bg-white text-[#1C1917] text-[13px] font-semibold hover:bg-[#F3F0EA] active:scale-[0.97] transition-all flex-shrink-0" id="newsletter-subscribe-btn">Subscribe</button>
               </div>
             </div>
           </Reveal>
@@ -582,7 +618,7 @@ export default function App() {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="border-t border-[#E7E5E4] bg-white">
+      <footer className="border-t border-[#E7E5E4] bg-white" id="main-footer">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 py-14">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
             <div className="col-span-2 space-y-4">
@@ -613,11 +649,10 @@ export default function App() {
       </footer>
 
       {selectedProduct && <EntityDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} />}
-      <AuthModal 
-        isOpen={authModalOpen} 
-        onClose={() => setAuthModalOpen(false)} 
-        onAuthSuccess={handleAuthSuccess} 
-        status={backendStatus}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
       />
     </div>
   );

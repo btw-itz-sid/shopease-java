@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * Data Transfer Object representing a user login request.
- * Handled on Day 8 for validation and processing.
  */
 @Data
 @NoArgsConstructor
