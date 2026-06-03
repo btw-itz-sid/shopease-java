@@ -1,5 +1,7 @@
 package com.shopease.controller;
 
+import com.shopease.dto.LoginRequest;
+import com.shopease.dto.LoginResponse;
 import com.shopease.dto.RegisterRequest;
 import com.shopease.dto.UserResponse;
 import com.shopease.service.AuthService;
@@ -50,6 +52,22 @@ public class AuthController {
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+    /**
+     * Authenticates a user, verifies credentials, and generates a JWT.
+     * POST /api/auth/login
+     */
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        try {
+            LoginResponse response = authService.login(request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
     }
 

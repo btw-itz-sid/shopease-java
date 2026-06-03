@@ -52,6 +52,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
           });
           const data = await response.json();
           if (response.ok) {
+            if (data.token) {
+              localStorage.setItem('shopease_token', data.token);
+            }
             onAuthSuccess(data, 'Successfully registered!');
             onClose();
           } else {
@@ -70,16 +73,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
+          localStorage.setItem('shopease_token', 'mock-sandbox-token-' + Math.random().toString(36).substring(2));
           onAuthSuccess(mockUser, 'Registered successfully in Sandbox Mode!');
           onClose();
         }
       } else {
-        // Sign In (Login) - Day 8 planned, but let's implement validation / flow now
-        // Express backend has login, but Spring Boot might not have it yet.
-        // Let's call the backend if live, otherwise mock it.
+        // Sign In (Login) - Day 8
         if (status === 'live') {
-          // Since Day 8 hasn't built login endpoint or Spring Security filter in boot,
-          // we can try login endpoint if it exists or mock it gracefully for testing!
           try {
             const response = await fetch('http://localhost:8085/api/auth/login', {
               method: 'POST',
@@ -88,33 +88,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
             });
             const data = await response.json();
             if (response.ok) {
+              if (data.token) {
+                localStorage.setItem('shopease_token', data.token);
+              }
               onAuthSuccess(data.user, 'Logged in successfully!');
               onClose();
             } else {
-              setError(data.message || data.error || 'Invalid credentials or login not implemented yet. Trying sandbox...');
-              // Fallback to sandbox login for ease of testing
-              await new Promise((resolve) => setTimeout(resolve, 600));
-              const mockUser = {
-                id: 1,
-                name: email.split('@')[0],
-                email,
-                role: 'BUYER',
-                avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.split('@')[0]}`,
-              };
-              onAuthSuccess(mockUser, 'Logged in successfully (Sandbox)!');
-              onClose();
+              setError(data.error || data.message || 'Invalid credentials');
             }
           } catch (e) {
-            // Backend offline/unresponsive to login
-            const mockUser = {
-              id: 1,
-              name: email.split('@')[0],
-              email,
-              role: 'BUYER',
-              avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.split('@')[0]}`,
-            };
-            onAuthSuccess(mockUser, 'Logged in successfully (Sandbox)!');
-            onClose();
+            setError('Could not connect to the authentication server. Please try again.');
           }
         } else {
           // Sandbox Mode Fallback Login
@@ -126,6 +109,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, status }) {
             role: 'BUYER',
             avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email.split('@')[0]}`,
           };
+          localStorage.setItem('shopease_token', 'mock-sandbox-token-' + Math.random().toString(36).substring(2));
           onAuthSuccess(mockUser, 'Logged in successfully (Sandbox)!');
           onClose();
         }

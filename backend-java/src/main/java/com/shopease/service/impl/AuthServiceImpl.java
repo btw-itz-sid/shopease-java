@@ -1,9 +1,12 @@
 package com.shopease.service.impl;
 
+import com.shopease.dto.LoginRequest;
+import com.shopease.dto.LoginResponse;
 import com.shopease.dto.RegisterRequest;
 import com.shopease.dto.UserResponse;
 import com.shopease.model.User;
 import com.shopease.repository.UserRepository;
+import com.shopease.security.JwtUtils;
 import com.shopease.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -13,17 +16,20 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Service implementation for authentication operations.
  * Day 6: Handles user validation, password hashing, and user persistence.
+ * Day 8: Handles user login authentication and JWT token generation.
  */
 @Service
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtUtils jwtUtils;
 
     @Autowired
-    public AuthServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
+    public AuthServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtils = jwtUtils;
     }
 
     @Override
@@ -57,6 +63,39 @@ public class AuthServiceImpl implements AuthService {
                 .avatarUrl(savedUser.getAvatarUrl())
                 .createdAt(savedUser.getCreatedAt())
                 .updatedAt(savedUser.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request) {
+        // 1. Fetch user from UserRepository by email
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+
+        // 2. Verify password with passwordEncoder.matches()
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new IllegalArgumentException("Invalid email or password");
+        }
+
+        // 3. Generate JWT token
+        String token = jwtUtils.generateToken(user.getEmail(), user.getRole().name());
+
+        // 4. Map and return LoginResponse
+        UserResponse userResponse = UserResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .avatarUrl(user.getAvatarUrl())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+
+        return LoginResponse.builder()
+                .success(true)
+                .token(token)
+                .user(userResponse)
                 .build();
     }
 }

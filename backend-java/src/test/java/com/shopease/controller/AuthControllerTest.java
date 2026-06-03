@@ -1,5 +1,7 @@
 package com.shopease.controller;
 
+import com.shopease.dto.LoginRequest;
+import com.shopease.dto.LoginResponse;
 import com.shopease.dto.RegisterRequest;
 import com.shopease.dto.UserResponse;
 import com.shopease.model.Role;
@@ -164,5 +166,72 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.valid", is(true)))
                 .andExpect(jsonPath("$.claims.sub", is("test@shopease.com")))
                 .andExpect(jsonPath("$.claims.role", is("BUYER")));
+    }
+
+    @Test
+    void login_Success() throws Exception {
+        UserResponse userResponse = UserResponse.builder()
+                .id(1L)
+                .name("Alice Smith")
+                .email("alice@example.com")
+                .role(Role.BUYER)
+                .avatarUrl("https://api.dicebear.com/7.x/adventurer/svg?seed=AliceSmith")
+                .createdAt(java.time.LocalDateTime.now())
+                .updatedAt(java.time.LocalDateTime.now())
+                .build();
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .success(true)
+                .token("mock-jwt-token")
+                .user(userResponse)
+                .build();
+
+        when(authService.login(any(LoginRequest.class))).thenReturn(loginResponse);
+
+        String payload = "{" +
+                "\"email\":\"alice@example.com\"," +
+                "\"password\":\"password123\"" +
+                "}";
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.token", is("mock-jwt-token")))
+                .andExpect(jsonPath("$.user.id", is(1)))
+                .andExpect(jsonPath("$.user.email", is("alice@example.com")))
+                .andExpect(jsonPath("$.user.role", is("BUYER")));
+    }
+
+    @Test
+    void login_InvalidCredentials_ThrowsError() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new IllegalArgumentException("Invalid email or password"));
+
+        String payload = "{" +
+                "\"email\":\"alice@example.com\"," +
+                "\"password\":\"wrongpassword\"" +
+                "}";
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error", is("Invalid email or password")));
+    }
+
+    @Test
+    void login_ValidationErrors() throws Exception {
+        // Empty fields, invalid email
+        String payload = "{" +
+                "\"email\":\"not-an-email\"," +
+                "\"password\":\"\"" +
+                "}";
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest());
     }
 }
