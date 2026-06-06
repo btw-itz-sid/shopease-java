@@ -1,3 +1,5 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const { Client } = require('pg');
 const logger = require('../src/utils/logger') || console;
 
@@ -6,7 +8,7 @@ const createDatabase = async () => {
   const client = new Client({
     user: 'postgres',
     host: 'localhost',
-    password: 'postgres', // Add your postgres password here if it fails
+    password: process.env.DB_PASSWORD || 'postgres', // Add your postgres password here if it fails
     port: 9508,
     database: 'postgres',
   });
