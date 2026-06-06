@@ -40,12 +40,21 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public auth endpoints
                 .requestMatchers("/auth/**").permitAll()
+                // Public catalog browsing
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/categories/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/products/**").permitAll()
+                // Category write operations (Admin only)
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/categories").hasRole("ADMIN")
+                // Product write operations (Sellers & Admins)
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/products").hasAnyRole("SELLER", "ADMIN")
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/products/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/products/**").authenticated()
                 // Protected test endpoints
                 .requestMatchers("/api/test/secure-resource").authenticated()
                 .requestMatchers("/api/test/buyer-only").hasRole("BUYER")
                 .requestMatchers("/api/test/seller-only").hasRole("SELLER")
-                // Default: permit all other requests (tighten as new endpoints are added)
-                .anyRequest().permitAll()
+                // Default fallback
+                .anyRequest().authenticated()
             )
             // Add custom JWT filter before the standard UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
