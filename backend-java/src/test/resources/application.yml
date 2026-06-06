@@ -1,0 +1,27 @@
+# Test-specific Spring Boot configuration.
+# Overrides src/main/resources/application.yml for the test classpath.
+# Dev defaults are intentional — these values are already in git history.
+# For production, always supply real env vars; never rely on these defaults.
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:9508/shopease}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+server:
+  port: ${SERVER_PORT:8085}
+  servlet:
+    context-path: /api
+
+jwt:
+  secret: ${JWT_SECRET:mock_jwt_secret_key_mock_jwt_secret_key_mock_jwt_secret_key}
+  expiration: 86400000

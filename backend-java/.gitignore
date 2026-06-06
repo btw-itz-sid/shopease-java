@@ -31,3 +31,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# ── Secrets & Local Config ────────────────────────────────────────────────────
+# Never commit files containing real credentials.
+# Use env vars or application-local.yml (gitignored) for local overrides.
+application-local.yml
+application-local.yaml
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+.env
+.env.*
+!.env.example
+*.local.yml
+*.local.yaml
+

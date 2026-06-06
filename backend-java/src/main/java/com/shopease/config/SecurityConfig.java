@@ -1,6 +1,7 @@
 package com.shopease.config;
 
 import com.shopease.security.JwtFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -49,12 +50,19 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/products").hasAnyRole("SELLER", "ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/products/**").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/products/**").authenticated()
+                // Shopping cart — all operations require a logged-in user
+                .requestMatchers("/cart/**").authenticated()
                 // Protected test endpoints
                 .requestMatchers("/api/test/secure-resource").authenticated()
                 .requestMatchers("/api/test/buyer-only").hasRole("BUYER")
                 .requestMatchers("/api/test/seller-only").hasRole("SELLER")
                 // Default fallback
                 .anyRequest().authenticated()
+            )
+            // Return 401 (not 403) when a request is missing or has an invalid JWT token
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) ->
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
             )
             // Add custom JWT filter before the standard UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

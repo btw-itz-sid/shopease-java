@@ -20,12 +20,11 @@ public class SecurityIntegrationTest {
     private JwtUtils jwtUtils;
 
     @Test
-    void accessSecureResource_WithoutToken_Returns403() throws Exception {
-        // Accessing authenticated endpoint without token should be blocked by filter chain
-        // In default Spring Boot / Spring Security 6 configurations, unauthorized accesses
-        // for protected paths default to 403 Forbidden unless explicitly mapped to 401.
+    void accessSecureResource_WithoutToken_Returns401() throws Exception {
+        // Accessing authenticated endpoint without token should return 401 Unauthorized
+        // (our custom AuthenticationEntryPoint sends 401 instead of Spring's default 403)
         mockMvc.perform(get("/api/test/secure-resource"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

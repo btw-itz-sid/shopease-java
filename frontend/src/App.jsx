@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import CategoryShowcase from './components/buyer/CategoryShowcase';
 import ProductCard from './components/buyer/ProductCard';
 import EntityDetailModal from './components/buyer/EntityDetailModal';
 import AuthModal from './components/buyer/AuthModal';
 import useAuthStore from './store/authStore';
-import { mockCategories, mockProducts } from './utils/mockData';
+import { productsAPI, categoriesAPI } from './services/api';
 
 
 /* ─── Scroll-reveal ─── */
@@ -158,18 +159,30 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const filtered = mockProducts.filter(p => {
-    const q = searchQuery.toLowerCase();
-    const matchQ = !q || p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
-    let matchCat = true;
-    if (selectedCategory) matchCat = p.category.id === selectedCategory.id || (p.category.parent?.id === selectedCategory.id);
-    return matchQ && matchCat && p.price <= priceRange;
-  }).sort((a, b) => {
-    if (sortOption === 'price_asc') return a.price - b.price;
-    if (sortOption === 'price_desc') return b.price - a.price;
-    if (sortOption === 'rating') return b.rating - a.rating;
-    return b.id - a.id;
+  // ── React Query for Catalog Data ──
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await categoriesAPI.getCategories();
+      return res.data?.data || [];
+    }
   });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ['products', searchQuery, selectedCategory?.slug, priceRange, sortOption],
+    queryFn: async () => {
+      const params = {
+        search: searchQuery || undefined,
+        cat: selectedCategory?.slug || undefined,
+        max_price: priceRange || undefined,
+        sort: sortOption || undefined
+      };
+      const res = await productsAPI.getProducts(params);
+      return res.data?.data || [];
+    }
+  });
+
+  const filtered = products;
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -491,7 +504,7 @@ export default function App() {
 
       {/* ═══ CATEGORIES ═══ */}
       <section id="categories" className="max-w-7xl mx-auto px-6 sm:px-8 py-14">
-        <Reveal><CategoryShowcase categories={mockCategories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} /></Reveal>
+        <Reveal><CategoryShowcase categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} /></Reveal>
       </section>
 
       {/* ═══ PRODUCTS ═══ */}
@@ -570,7 +583,7 @@ export default function App() {
             </div>
           </Reveal>
           <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-            {mockProducts.sort((a, b) => b.ratingCount - a.ratingCount).slice(0, 4).map((p, i) => {
+            {[...products].sort((a, b) => b.ratingCount - a.ratingCount).slice(0, 4).map((p, i) => {
               const images = JSON.parse(p.images);
               return (
                 <Reveal key={p.id} delay={Math.min(i+1, 4)}>

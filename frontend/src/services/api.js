@@ -52,6 +52,30 @@ export const authAPI = {
   healthCheck: () => api.post('/auth/hash-test', { password: 'ping' }),
 };
 
+// ── Catalog (Products & Categories) API methods ──
+export const productsAPI = {
+  getProducts: (params) => api.get('/products', { params }),
+  getProductBySlug: (slug) => api.get(`/products/${slug}`),
+  createProduct: (data) => api.post('/products', data),
+  updateProduct: (slug, data) => api.put(`/products/${slug}`, data),
+  deleteProduct: (slug) => api.delete(`/products/${slug}`),
+};
+
+export const categoriesAPI = {
+  getCategories: () => api.get('/categories'),
+  getCategoryBySlug: (slug) => api.get(`/categories/${slug}`),
+  createCategory: (data) => api.post('/categories', data),
+};
+
+// ── Cart API methods ──
+export const cartAPI = {
+  getCart: () => api.get('/cart'),
+  addItem: (data) => api.post('/cart', data),
+  updateQuantity: (data) => api.put('/cart', data),
+  removeItem: (productId) => api.delete(`/cart/${productId}`),
+  clearCart: () => api.delete('/cart/clear'),
+};
+
 // ── Protected resource API methods ──
 export const secureAPI = {
   getSecureResource: () => api.get('/api/test/secure-resource'),

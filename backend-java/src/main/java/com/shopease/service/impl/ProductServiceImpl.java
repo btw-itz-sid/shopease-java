@@ -213,11 +213,15 @@ public class ProductServiceImpl implements ProductService {
                 .isActive(product.getIsActive())
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
-                .sellerId(product.getSeller() != null ? product.getSeller().getId() : null)
-                .sellerName(product.getSeller() != null ? product.getSeller().getName() : null)
-                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
-                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
-                .categorySlug(product.getCategory() != null ? product.getCategory().getSlug() : null)
+                .seller(product.getSeller() != null ? ProductResponse.SellerDto.builder()
+                        .id(product.getSeller().getId())
+                        .name(product.getSeller().getName())
+                        .build() : null)
+                .category(product.getCategory() != null ? ProductResponse.CategoryDto.builder()
+                        .id(product.getCategory().getId())
+                        .name(product.getCategory().getName())
+                        .slug(product.getCategory().getSlug())
+                        .build() : null)
                 .build();
     }
 

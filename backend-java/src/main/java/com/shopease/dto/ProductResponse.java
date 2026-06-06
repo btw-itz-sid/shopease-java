@@ -29,12 +29,25 @@ public class ProductResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Seller fields
-    private Long sellerId;
-    private String sellerName;
+    private SellerDto seller;
+    private CategoryDto category;
 
-    // Category fields
-    private Long categoryId;
-    private String categoryName;
-    private String categorySlug;
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SellerDto {
+        private Long id;
+        private String name;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CategoryDto {
+        private Long id;
+        private String name;
+        private String slug;
+    }
 }
